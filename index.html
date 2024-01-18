@@ -58,7 +58,7 @@
                 padding-left: 10px;
                 text-align: left;
             }
-            
+
             #sessions {
                 margin-top: 18px;
                 margin-bottom: 18px;
@@ -104,23 +104,11 @@
                 result += `<th id="title_update">Latest TU</th>\n`;
                 result += `</tr>\n`;
 
-                sessionsData["Titles"].forEach((titleInfo) => {
-                    let titleData;
-
-                    // will return object if title not found.
-                    const response = HttpGet(`http://xboxunity.net/Resources/Lib/Title.php?tid=${titleInfo.titleId}`);
-
-                    if (response.status == 304 || response.status == 200) {
-                        titleData = JSON.parse(response.responseText);
-                    }
-
-                    const icon_path = `http://xboxunity.net/Resources/Lib/Icon.php?tid=${titleInfo.titleId}`;
-                    const error_icon_path = `https://i.postimg.cc/MKqhqZbS/Icon.png`;
-
+                sessionsData?.Titles?.forEach((titleInfo) => {
                     let title = "N/A";
 
-                    if (titleData.TitleID) {
-                        title = titleData.Name;
+                    if (titleInfo?.info?.TitleID) {
+                        title = titleInfo.info.Name;
                     } else if (titleInfo.name) {
                         title = titleInfo.name;
                     }
@@ -131,8 +119,8 @@
                         let TU_Text = "N/A";
                         let TU_download_url = "#";
 
-                        if (titleData.TitleID && session.mediaId) {
-                            const Title_Update = GetLatestTU(titleData, session.mediaId);
+                        if (titleInfo?.info?.TitleID && session.mediaId) {
+                            const Title_Update = GetLatestTU(titleInfo.info, session.mediaId);
 
                             if (Title_Update) {
                                 TU_download_url = `http://xboxunity.net/Resources/Lib/TitleUpdate.php?tuid=${Title_Update.TitleUpdateID}`;
@@ -140,7 +128,8 @@
                             }
                         }
 
-                        const icon = `<div class="image"><img src="${icon_path}" width="64" height="64" onerror="this.src='${error_icon_path}';"></div>`;
+                        const error_icon_path = `https://i.postimg.cc/MKqhqZbS/Icon.png`;
+                        const icon = `<div class="image"><img src="${titleInfo.icon}" width="64" height="64" onerror="this.src='${error_icon_path}';"></div>`;
 
                         result += `<tr>\n`;
                         result += `<td>
@@ -164,14 +153,14 @@
                 return result;
             }
 
-            function GetLatestTU(titleData, mediaId) {
+            function GetLatestTU(titleInfo, mediaId) {
                 let latestTU;
 
                 if (mediaId == 0) {
                     return latestTU;
                 }
 
-                titleData["MediaIds"].forEach((media) => {
+                titleInfo.info["MediaIds"].forEach((media) => {
                     if (media.MediaID == mediaId) {
                         const lastIndex = media["Updates"].length - 1;
                         latestTU = media["Updates"][lastIndex];
@@ -208,8 +197,8 @@
 
             function refreshTimer() {
                 if (time <= 0) {
-                    refreshSessionTable();
                     time = 60;
+                    refreshSessionTable();
                 }
 
                 document.getElementById("countdown").innerHTML = "Refreshing in " + time + "s";
