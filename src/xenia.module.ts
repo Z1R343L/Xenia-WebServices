@@ -4,6 +4,8 @@ import { DomainModule } from './domain/domain.module';
 import { ILoggerSymbol } from './ILogger';
 import { PersistanceModule } from './infrastructure/persistance/persistance.module';
 import { PresentationModule } from './infrastructure/presentation/presentation.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Global()
 @Module({
@@ -12,6 +14,10 @@ import { PresentationModule } from './infrastructure/presentation/presentation.m
     DomainModule,
     PersistanceModule,
     PresentationModule,
+    ServeStaticModule.forRoot({
+      serveRoot: '/',
+      rootPath: join(__dirname, '..', 'public'),
+    }),
   ],
   controllers: [],
   providers: [{ provide: ILoggerSymbol, useClass: ConsoleLogger }],

@@ -6,6 +6,9 @@ import ISessionRepository, {
 } from 'src/domain/repositories/ISessionRepository';
 import axios, { AxiosRequestConfig } from 'axios';
 
+const icon_cache = new Map<string, string>();
+const title_info_cache = new Map<string, object>();
+
 @CommandHandler(AggregateSessionCommand)
 export class AggregateSessionCommandHandler
   implements ICommandHandler<AggregateSessionCommand>
@@ -32,13 +35,13 @@ export class AggregateSessionCommandHandler
     const config: AxiosRequestConfig = {
       url: url,
       responseType: type,
+      timeout: 300,
     };
 
     await axios
-      .get(url, config)
+      .request(config)
       .then((response) => {
         data = response.data;
-        console.log('Request Success');
       })
       .catch(function (error) {
         if (error.response) {
@@ -63,26 +66,48 @@ export class AggregateSessionCommandHandler
     for (const session of sessions) {
       const titleId = session.titleId.toString();
 
-      let index = titles['Titles'].findIndex(
-        (title) => title.titleId === titleId,
-      );
+      if (!icon_cache.has(titleId)) {
+        const icon_base64 = await this.downloadImageAsBase64(
+          `http://xboxunity.net/Resources/Lib/Icon.php?tid=${titleId}`,
+        );
 
-      // will return object if title not found.
-      const icon_base64 = await this.downloadImageAsBase64(
-        `http://xboxunity.net/Resources/Lib/Icon.php?tid=${titleId}`,
-      );
+        // Don't cache empty response
+        if (icon_base64) {
+          // Don't cache placeholder icon
+          if (
+            !icon_base64.startsWith(
+              'GXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA2ZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw',
+              70,
+            )
+          ) {
+            icon_cache.set(titleId, icon_base64);
+          }
+        }
+      }
 
+      // will return empty object if title not found.
       const title_info = await this.downloadContent(
         `http://xboxunity.net/Resources/Lib/Title.php?tid=${titleId}`,
         'json',
+      );
+
+      if (!title_info_cache.has(titleId) && title_info) {
+        // Check if returned object was empty.
+        if (title_info.TitleID) {
+          title_info_cache.set(titleId, title_info);
+        }
+      }
+
+      let index = titles['Titles'].findIndex(
+        (title) => title.titleId == titleId,
       );
 
       if (index == -1) {
         const data = {
           titleId: titleId,
           name: session.title,
-          icon: icon_base64,
-          info: title_info,
+          icon: icon_cache.get(titleId),
+          info: title_info_cache.get(titleId),
           sessions: [],
         };
 
@@ -99,6 +124,9 @@ export class AggregateSessionCommandHandler
 
       titles['Titles'][index]['sessions'].push(data);
     }
+
+    console.log(`Icon Cache Size: ${icon_cache.size}`);
+    console.log(`Title Info Cache Size: ${title_info_cache.size}`);
 
     return JSON.stringify(titles);
   }
